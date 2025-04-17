@@ -1,0 +1,18 @@
+# Interfaccia utente per la scelta dell'operazione da eseguire
+echo "Scegliere l'operazione da eseguire:"
+echo "1. Ricerca di un file"
+echo "2. Cancellazione di un file"
+echo "3. Ricerca di testo"
+echo "4. Modifica di testo nei file"
+echo "5. Ricerca dei file contenenti la stringa @include nei file con estensione .php"
+echo "6. Ricerca dei file contenenti la stringa preg_replace nei file con estensione .ico"
+echo "7. Ricerca dei file contenenti la stringa @include nei file con estensione .php"
+echo "8. Ricerca dei file contenenti la stringa preg_replace nei file con estensione .ico"
+echo "9. Riavvio del servizio Apache2"
+echo "10. Riavvio del servizio Nginx"
+echo "11. Riavvio del servizio PHP"
+echo "12. Riavvio del servizio Postfix"
+echo "13. Riavvio del servizio Dovecot"
+echo "14. Cancellazione delle email dalla coda di Postfix"
+echo -n "Scelta: "
+read choice
