@@ -1,8 +1,16 @@
 #!/bin/bash
-# Script Utility SysAdmin aggiornato con WordPress Tips & MySQLTuner
+# Script Utility SysAdmin aggiornato con WordPress Tips, MySQLTuner e Scanner WebShell
+
+# ====== CONFIG INIZIALE ======
+LOGFILE="/var/log/php-malware-scan.log"
+TMPFILE="/tmp/found_suspicious_files.txt"
+> "$TMPFILE"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
 
 # ===== Funzioni di servizio =====
-
 search_file() {
     read -rp "Inserire il nome del file da cercare: " file_name
     echo "Cerco il file $file_name..."
@@ -66,12 +74,10 @@ delete_postfix_queue() {
     postsuper -d ALL && echo "Coda Postfix svuotata."
 }
 
-# ===== Funzione per comandi dal repository WordPress =====
 wordpress_tips() {
     local repo_url="https://github.com/theprincy/Tips-Tricks-and-Hacks-Wordpress.git"
     local repo_dir="/tmp/wp_tips"
 
-    # Clona o aggiorna il repository
     if [ -d "$repo_dir/.git" ]; then
         echo "Aggiorno il repository..."
         git -C "$repo_dir" pull
@@ -80,7 +86,6 @@ wordpress_tips() {
         git clone "$repo_url" "$repo_dir"
     fi
 
-    # Trova tutti i file di script
     mapfile -t scripts < <(find "$repo_dir" -type f -name "*.sh" -o -name "*.php")
 
     if [ ${#scripts[@]} -eq 0 ]; then
@@ -103,25 +108,68 @@ wordpress_tips() {
     fi
 }
 
-# ===== Funzione per MySQLTuner =====
 mysql_tuner() {
     local tuner_url="https://raw.githubusercontent.com/theprincy/MySQLTuner-perl/master/mysqltuner.pl"
     local tuner_path="/tmp/mysqltuner.pl"
 
-    # Scarica o aggiorna lo script
     echo "Scarico/aggiorno MySQLTuner..."
     curl -s -o "$tuner_path" "$tuner_url"
     chmod +x "$tuner_path"
 
-    # Chiede credenziali MySQL
     read -rp "Inserire host MySQL (default: localhost): " host
     read -rp "Inserire username MySQL: " user
     read -srp "Inserire password MySQL: " pass
     echo
 
-    # Esegue lo script
-    echo "Eseguo MySQLTuner..."
     perl "$tuner_path" --host "${host:-localhost}" --user "$user" --pass "$pass"
+}
+
+scan_webshell() {
+    echo -e "${GREEN}Scansione WebShell e PHP sospetti...${NC}"
+    SEARCH_PATH="${1:-/www/wwwroot}"
+
+    patterns=(
+      "eval *("
+      "base64_decode *("
+      "gzinflate *("
+      "shell_exec *("
+      "system *("
+      "passthru *("
+      "exec *("
+      "popen *("
+      "proc_open *("
+      "assert *("
+      "php_uname *("
+      "phpinfo *("
+      "c99shell"
+      "r57shell"
+      "FilesMan"
+      "webshell"
+      "urldecode("
+      "preg_replace.*/e"
+      "ob_start("
+    )
+
+    for pattern in "${patterns[@]}"; do
+        echo "🔍 Pattern: $pattern"
+        grep -rIl --include="*.php" -E "$pattern" "$SEARCH_PATH" 2>/dev/null | tee -a "$TMPFILE"
+    done
+
+    echo -e "\n${GREEN}Analisi completata. File sospetti: ${NC} $TMPFILE"
+}
+
+delete_suspicious_files() {
+    echo -e "${RED}⚠️ Eliminazione file sospetti in $TMPFILE${NC}"
+    read -rp "Confermare eliminazione? (s/n): " confirm
+    if [[ "$confirm" == "s" ]]; then
+        while IFS= read -r file; do
+            echo "Elimino: $file"
+            rm -f -- "$file"
+        done < "$TMPFILE"
+        echo -e "${GREEN}File eliminati.${NC}"
+    else
+        echo "Operazione annullata."
+    fi
 }
 
 # ===== Menu principale =====
@@ -144,6 +192,8 @@ while true; do
     echo "14) Svuotamento coda Postfix"
     echo "15) Comandi dal repository Tips-Tricks-and-Hacks-Wordpress"
     echo "16) Esegui MySQLTuner (Analisi Database)"
+    echo "17) Scanner WebShell / PHP sospetti"
+    echo "18) Elimina file sospetti trovati"
     echo "0) Esci"
     read -rp "Scelta: " choice
 
@@ -158,12 +208,14 @@ while true; do
         8) backup_folder ;;
         9) restart_service apache2 ;;
         10) restart_service nginx ;;
-        11) restart_service php7.4-fpm ;; # aggiorna la versione PHP se necessario
+        11) restart_service php7.4-fpm ;;
         12) restart_service postfix ;;
         13) restart_service dovecot ;;
         14) delete_postfix_queue ;;
         15) wordpress_tips ;;
         16) mysql_tuner ;;
+        17) scan_webshell ;;
+        18) delete_suspicious_files ;;
         0) echo "Uscita."; break ;;
         *) echo "Scelta non valida." ;;
     esac
