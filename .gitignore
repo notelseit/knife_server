@@ -1,0 +1,10 @@
+# Never commit API secrets, tokens, private configuration or runtime logs
+.env
+.env.*
+!.env.example
+*.log
+logs/
+secrets/
+config/local.*
+__pycache__/
+*.pyc
