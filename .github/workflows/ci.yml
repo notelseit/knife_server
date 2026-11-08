@@ -1,0 +1,12 @@
+name: Knife Server CI
+on:
+  push:
+    branches: [main, feature/knife-server-v2]
+  pull_request:
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash and DNS smoke tests
+        run: bash tests/smoke.sh
